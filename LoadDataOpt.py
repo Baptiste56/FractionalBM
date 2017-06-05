@@ -38,6 +38,20 @@ class LoadDataOpt:
             val.append(lst[i * 4 + 1])
         return val
 
+    def getEdges(cls, k):
+        ans = []
+        val = LoadDataOpt.getUniQuant(k)
+        if(len(val) == 1):
+            ans.append(float('-inf'))
+            ans.append(float('inf'))
+        else:
+            ans.append(float('-inf'))
+            for i in range(0, len(val) - 1):
+                ans.append((val[i] + val[i + 1]) / 2)
+            ans.append(float('inf'))
+        return ans
+
     # CLASS METHODS #
 
     getUniQuant = classmethod(getUniQuant)
+    getEdges = classmethod(getEdges)

@@ -18,13 +18,27 @@ class VorCell:
 
     def eigVec(cls, k, x, T):
         if isinstance(x, float):
-            return VorCell.eigVec2(k, x)
+            return VorCell.eigVec2(k, x, T)
         else:
             ans = []
             for v in x:
                 ans.append(mt.sqrt(2 / T) *
                            mt.sin(mt.pi * (k - 0.5) * (v / T)))
             return ans
+
+    def eigVecPrim(cls, k, x, T):
+        if isinstance(x, float):
+            return VorCell.eigVecPrim2(k, x, T)
+        else:
+            ans = []
+            for v in x:
+                    ans.append(mt.sqrt(2 / T) * (mt.pi / T) * (k - 0.5) *
+                               mt.cos(mt.pi * (k - 0.5) * (v / T)))
+            return ans
+
+    def eigVecPrim2(cls, k, x, T):
+        return mt.sqrt(2 / T) * (mt.pi / T) * (k - 0.5) *\
+            mt.cos(mt.pi * (k - 0.5) * (x / T))
 
     def eigVec2(cls, k, x, T):
         return mt.sqrt(2 / T) * mt.sin(mt.pi * (k - 0.5) * (x / T))
@@ -79,6 +93,8 @@ class VorCell:
     eigVal = classmethod(eigVal)
     eigVec = classmethod(eigVec)
     eigVec2 = classmethod(eigVec2)
+    eigVecPrim = classmethod(eigVecPrim)
+    eigVecPrim2 = classmethod(eigVecPrim2)
 
     # GETTERS, SETTERS AND PROPERTIES #
 
