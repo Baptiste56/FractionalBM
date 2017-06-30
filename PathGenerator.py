@@ -8,13 +8,63 @@ import math as mt
 class PathGenerator:
     """
     Generate a path for Gaussian Process with repect
-    to a Voronoi cell.
+    to a Voronoi cell (pass throught lst).
+    The number of strat is predefined with data.
     """
-    def __init__(self, x, N):
-        self._N = N
-        self._x = x
-        self.data = LoadDataOpt(N)
-        self.decomp = self.data.decomp
+    def __init__(self, env, data):
+        self._env = env
+        self._data = data
+        self._edges = []
+        self._vc = VorCell(env, data)
+
+        # 2 next variables redefined for convinience,
+        # please do not change the value here.
+        self._x = self._env.x
+        self.decomp = self._data.decomp
+
+        n = len(self._x)
+        d = len(self.decomp)
+        self._rYV = [n * [0] for i in range(d)]
+        self._rVY = [n * [0] for i in range(d)]
+        self._covY = [d * [0] for i in range(d)]
+        self._covV = [n * [0] for i in range(n)]
+        self.initiateMatrices()
+
+    def initiateMatrices(self):
+        n = len(self._x)
+        d = len(self.decomp)
+        h = 1.0 / n
+        for i in range(len(self.decomp)):
+            self._edges.append(self._data.getEdges(self.decomp[i]))
+
+        for i in range(n):
+            for j in range(n):
+                self._covV[i][j] = min(self._x[i], self._x[j])
+        self._covV = np.matrix(self._covV)
+
+        for i in range(d):
+            lambdaI = self._vc.eigVal(i + 1, 1)
+            eI = self._vc.eigVec(i + 1, self._x, 1)
+            self._rVY[i] = eI[:]
+            for j in range(n):
+                if(j == 0):
+                    self._rYV[i][j] = lambdaI *\
+                        (self._vc.eigVecPrim(i + 1, self._x[0], 1) -
+                         ((eI[1] - eI[0]) / h))
+                elif(j == n - 1):
+                    self._rYV[i][j] = lambdaI *\
+                        (((eI[n - 1] - eI[n - 2]) / h) -
+                         self._vc.eigVecPrim(i + 1, self._x[n - 1], 1))
+                else:
+                    self._rYV[i][j] = lambdaI * (2 * eI[j] -
+                                                 eI[j - 1] - eI[j + 1]) / h
+        self._rYV = np.matrix(self._rYV)
+        self._rVY = np.matrix(self._rVY).T
+
+        for i in range(d):
+            self._covY[i][i] = self._vc.eigVal(i + 1, 1)
+        self._covY = np.matrix(self._covY)
+        return
 
     def randomPath(self, lst):
         n = len(self._x)
@@ -23,11 +73,11 @@ class PathGenerator:
 
         # GENERATE FIRST K-L OF THE PATH #
         for i in range(d):
-            bor = LoadDataOpt.getEdges(self.decomp[i])
             u = rd.uniform(0, 1)
-            a = no.ppf((no.cdf(bor[lst[i] + 1]) -
-                        no.cdf(bor[lst[i]])) * u + no.cdf(bor[lst[i]]))
-            a = a * mt.sqrt(VorCell.eigVal(i + 1, 1))
+            a = no.ppf((no.cdf(self._edges[i][lst[i] + 1]) -
+                        no.cdf(self._edges[i][lst[i]])) * u +
+                       no.cdf(self._edges[i][lst[i]]))
+            a = a * mt.sqrt(self._vc.eigVal(i + 1, 1))
             y.append(a)
 
         # SIMULATE V (BROWNIAN MOTION) #
@@ -39,65 +89,54 @@ class PathGenerator:
 
         # SIMULATE G #
         # ---- Matrix definition ----
-        h = 1.0 / n
-        rYV = [n * [0] for i in range(d)]
-        rVY = [n * [0] for i in range(d)]
-        for i in range(d):
-            lambdaI = VorCell.eigVal(i + 1, 1)
-            eI = VorCell.eigVec(i + 1, self._x, 1)
-            rVY[i] = eI[:]
-            for j in range(n):
-                if(j == 0):
-                    rYV[i][j] = lambdaI *\
-                        (VorCell.eigVecPrim(i + 1, self._x[0], 1) -
-                                           ((eI[1] - eI[0]) / h))
-                elif(j == n - 1):
-                    rYV[i][j] = lambdaI *\
-                        (((eI[n - 1] - eI[n - 2]) / h) -
-                            VorCell.eigVecPrim(i + 1, self._x[n - 1], 1))
-                else:
-                    rYV[i][j] = lambdaI * (2 * eI[j] -
-                                           eI[j - 1] - eI[j + 1]) / h
-        rYV = np.matrix(rYV)
-        rVY = np.matrix(rVY).T
 
-        aYV = rYV * V
+        aYV = self._rYV * V
 
-        covY = [d * [0] for i in range(d)]
-        for i in range(d):
-            covY[i][i] = VorCell.eigVal(i + 1, 1)
-        covY = np.matrix(covY)
-
-        covV = [n * [0] for i in range(n)]
-        for i in range(n):
-            for j in range(n):
-                covV[i][j] = min(self._x[i], self._x[j])
-        covV = np.matrix(covV)
-
-        K = covY - rYV * covV * rYV.T
+        K = self._covY - self._rYV * self._covV * self._rYV.T
 
         G = np.random.multivariate_normal(np.squeeze(np.asarray(aYV.T)),
                                           np.asarray(K))
         G = np.matrix(G)
 
-        Z = V - rVY * G.T
-        ans = rVY * np.matrix(y).T + Z
+        Z = V - self._rVY * G.T
+        ans = self._rVY * np.matrix(y).T + Z
 
         return np.squeeze(np.asarray(ans.T))
 
     # GETTERS, SETTERS AND PROPERTIES #
 
-    def _get_x(self):
-        return self._x
+    def _get_edges(self):
+        return self._edges
 
-    def _set_x(self, x):
-        self._x = x
+    def _set_edges(self, edges):
+        self._edges = edges
 
-    def _get_N(self):
-        return self._N
+    def _get_rYV(self):
+        return self._rYV
 
-    def _set_N(self, N):
-        self._N = N
+    def _set_rYV(self, rYV):
+        self._rYV = rYV
 
-    x = property(_get_x, _set_x)
-    N = property(_get_N, _set_N)
+    def _get_rVY(self):
+        return self._rVY
+
+    def _set_rVY(self, rVY):
+        self._rVY = rVY
+
+    def _get_covY(self):
+        return self._covY
+
+    def _set_covY(self, covY):
+        self._covY = covY
+
+    def _get_covV(self):
+        return self._covV
+
+    def _set_covV(self, covV):
+        self._covV = covV
+
+    edges = property(_get_edges, _set_edges)
+    rYV = property(_get_rYV, _set_rYV)
+    rVY = property(_get_rVY, _set_rVY)
+    covY = property(_get_covY, _set_covY)
+    covV = property(_get_covV, _set_covV)

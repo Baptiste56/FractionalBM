@@ -2,6 +2,7 @@ import math as mt
 import numpy as np
 import itertools
 from LoadDataOpt import *
+from Env import *
 
 
 class VorCell:
@@ -9,16 +10,16 @@ class VorCell:
     Definition of Voronoi Cell
     """
 
-    def __init__(self, x):
-        self.T = 1
-        self._x = x
+    def __init__(self, env, data):
+        self._env = env
+        self._data = data
 
-    def eigVal(cls, k, T):
+    def eigVal(self, k, T):
         return mt.pow(T / (mt.pi * (k - 0.5)), 2)
 
-    def eigVec(cls, k, x, T):
+    def eigVec(self, k, x, T):
         if isinstance(x, float):
-            return VorCell.eigVec2(k, x, T)
+            return self.eigVec2(k, x, T)
         else:
             ans = []
             for v in x:
@@ -26,9 +27,9 @@ class VorCell:
                            mt.sin(mt.pi * (k - 0.5) * (v / T)))
             return ans
 
-    def eigVecPrim(cls, k, x, T):
+    def eigVecPrim(self, k, x, T):
         if isinstance(x, float):
-            return VorCell.eigVecPrim2(k, x, T)
+            return self.eigVecPrim2(k, x, T)
         else:
             ans = []
             for v in x:
@@ -36,27 +37,27 @@ class VorCell:
                                mt.cos(mt.pi * (k - 0.5) * (v / T)))
             return ans
 
-    def eigVecPrim2(cls, k, x, T):
+    def eigVecPrim2(self, k, x, T):
         return mt.sqrt(2 / T) * (mt.pi / T) * (k - 0.5) *\
             mt.cos(mt.pi * (k - 0.5) * (x / T))
 
-    def eigVec2(cls, k, x, T):
+    def eigVec2(self, k, x, T):
         return mt.sqrt(2 / T) * mt.sin(mt.pi * (k - 0.5) * (x / T))
 
     def vorCell(self, lst):
-        ans = np.multiply(lst[0] * mt.sqrt(VorCell.eigVal(1, 1)),
-                          VorCell.eigVec(1, self._x, 1))
+        ans = np.multiply(lst[0] * mt.sqrt(self.eigVal(1, 1)),
+                          self.eigVec(1, self._env.x, 1))
         for i in range(1, len(lst)):
             ans = np.add(ans, np.multiply(lst[i] *
-                         mt.sqrt(VorCell.eigVal(2, 1)),
-                         VorCell.eigVec(2, self._x, 1)))
+                         mt.sqrt(self.eigVal(2, 1)),
+                         self.eigVec(2, self._env.x, 1)))
         return ans
 
     def sendAllCells(self, N, finalList):
         data = LoadDataOpt(N)
         lstUniQuant = []
         for el in data.decomp:
-            lstUniQuant.append(LoadDataOpt.getUniQuant(el))
+            lstUniQuant.append(data.getUniQuant(el))
         lst = self.cartProd(data.decomp)
         ans = []
         for sublst in lst:
@@ -70,7 +71,7 @@ class VorCell:
             finalList.append(self.vorCell(el))
         return
 
-    def cartProd(self, lst):
+    def cartProd(cls, lst):
         ans = []
         if(len(lst) == 1):
             ans = range(lst[0])
@@ -90,18 +91,21 @@ class VorCell:
         return ans
 
     # CLASS METHODS #
-    eigVal = classmethod(eigVal)
-    eigVec = classmethod(eigVec)
-    eigVec2 = classmethod(eigVec2)
-    eigVecPrim = classmethod(eigVecPrim)
-    eigVecPrim2 = classmethod(eigVecPrim2)
+    cartProd = classmethod(cartProd)
 
     # GETTERS, SETTERS AND PROPERTIES #
 
-    def _get_x(self):
-        return self._x
+    def _get_env(self):
+        return self._env
 
-    def _set_x(self, x):
-        self._x = x
+    def _set_env(self, env):
+        self._env = env
 
-    x = property(_get_x, _set_x)
+    def _get_data(self):
+        return self._data
+
+    def _set_data(self, data):
+        self._data = data
+
+    env = property(_get_env, _set_env)
+    data = property(_get_data, _set_data)
