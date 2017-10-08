@@ -3,6 +3,7 @@ from VorCell import *
 import random as rd
 from scipy.stats import norm as no
 import math as mt
+import numpy as np
 
 
 class PathGenerator:
@@ -33,7 +34,7 @@ class PathGenerator:
     def initiateMatrices(self):
         n = len(self._x)
         d = len(self.decomp)
-        h = 1.0 / n
+        h = 1.0 / (n - 1)
         for i in range(len(self.decomp)):
             self._edges.append(self._data.getEdges(self.decomp[i]))
 
@@ -83,7 +84,7 @@ class PathGenerator:
         # SIMULATE V (BROWNIAN MOTION) #
         V = [0]
         for i in range(n - 1):
-            inc = rd.normalvariate(0, mt.sqrt(self._x[i + 1] - self._x[i]))
+            inc = rd.normalvariate(0, np.sqrt(self._x[i + 1] - self._x[i]))
             V.append(V[i] + inc)
         V = np.matrix(V).T
 
@@ -92,7 +93,13 @@ class PathGenerator:
 
         aYV = self._rYV * V
 
-        K = self._covY - self._rYV * self._covV * self._rYV.T
+        Msym = self._rYV * self._covV * self._rYV.T
+        Msym = np.squeeze(np.asarray(Msym))
+        for i in range(len(Msym)):
+            for j in range(0, len(Msym)):
+                Msym[i][j] = Msym[j][i]
+
+        K = self._covY - Msym
 
         G = np.random.multivariate_normal(np.squeeze(np.asarray(aYV.T)),
                                           np.asarray(K))

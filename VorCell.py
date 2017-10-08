@@ -3,6 +3,8 @@ import numpy as np
 import itertools
 from LoadDataOpt import *
 from Env import *
+from FracBro import *
+from VorCell import *
 
 
 class VorCell:
@@ -53,6 +55,15 @@ class VorCell:
                          self.eigVec(2, self._env.x, 1)))
         return ans
 
+    def vorCellFrac(self, lst, fB):
+        ans = np.multiply(lst[0] * mt.sqrt(fB._eigVal[0]),
+                          fB._eigVec[0])
+        for i in range(1, len(lst)):
+            ans = np.add(ans, np.multiply(lst[i] *
+                         mt.sqrt(fB._eigVal[i]),
+                         fB._eigVec[i]))
+        return ans
+
     def sendAllCells(self, N, finalList):
         data = LoadDataOpt(N)
         lstUniQuant = []
@@ -70,6 +81,24 @@ class VorCell:
         for el in ans:
             finalList.append(self.vorCell(el))
         return
+
+    def sendAllCellsFrac(self, N, finalList):
+        data = LoadDataOpt(N)
+        fracBro = FracBro()
+        lstUniQuant = []
+        for el in data.decomp:
+            lstUniQuant.append(data.getUniQuant(el))
+        lst = self.cartProd(data.decomp)
+        ans = []
+        for sublst in lst:
+            ansTemp = []
+            i = 0
+            for el in sublst:
+                ansTemp.append(lstUniQuant[i][el])
+                i = i + 1
+            ans.append(ansTemp)
+        for el in ans:
+            finalList.append(self.vorCellFrac(el, fracBro))
 
     def cartProd(cls, lst):
         ans = []
